@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <title>Juno</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#f5f7fb;color:#111827;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif}
+    .app{max-width:520px;margin:auto;min-height:100dvh;padding-bottom:92px}.top{padding:calc(18px + env(safe-area-inset-top)) 20px 18px;background:#111827;color:white;border-radius:0 0 24px 24px}
+    .top h1{margin:0;font-size:27px}.top p{margin:5px 0 0;color:#cbd5e1}.screen{padding:18px}.card{background:white;border:1px solid #e5e7eb;border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 5px 18px #00000008}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tile{padding:18px;border-radius:16px;border:1px solid #e5e7eb;background:#fff;font-weight:700;cursor:pointer}
+    .tile small{display:block;font-weight:400;color:#64748b;margin-top:6px}.btn{width:100%;border:0;border-radius:14px;padding:14px 16px;background:#111827;color:#fff;font-size:16px;font-weight:700;cursor:pointer}.btn.secondary{background:#e5e7eb;color:#111827}
+    input{width:100%;padding:14px;border:1px solid #d1d5db;border-radius:12px;font-size:16px;margin:7px 0 12px}label{font-size:13px;font-weight:700;color:#475569}
+    .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(520px,100%);background:#fff;border-top:1px solid #e5e7eb;padding:9px 10px calc(9px + env(safe-area-inset-bottom));display:flex;justify-content:space-around}
+    .nav button{border:0;background:none;color:#64748b;font-weight:700;padding:7px 12px}.nav button.active{color:#111827}.hidden{display:none}.muted{color:#64748b}.ok{padding:12px;background:#ecfdf5;color:#047857;border-radius:12px}.warn{padding:12px;background:#fffbeb;color:#92400e;border-radius:12px}
+    #reader{width:100%;border-radius:14px;overflow:hidden;background:#111;min-height:260px}.pill{display:inline-block;padding:6px 10px;border-radius:99px;background:#eef2ff;color:#3730a3;font-size:12px;font-weight:700}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header class="top"><h1>Juno</h1><p id="subtitle">Mahindra University</p></header>
+
+  <main id="login" class="screen">
+    <div class="card">
+      <h2>Sign in</h2><p class="muted">Use your Mahindra University account.</p>
+      <label>University email</label><input id="email" type="email" placeholder="you@mahindrauniversity.edu.in">
+      <label>Password</label><input id="password" type="password" placeholder="Password">
+      <button class="btn" onclick="login()">Sign in</button>
+      <p id="loginMsg" class="muted"></p>
+    </div>
+  </main>
+
+  <main id="home" class="screen hidden">
+    <div class="card"><span class="pill">Student</span><h2 id="welcome">Welcome</h2><p id="course" class="muted">Course information</p></div>
+    <div class="grid">
+      <button class="tile" onclick="show('attendance')">📷<br>Mark Attendance<small>Scan JUNO QR</small></button>
+      <button class="tile" onclick="show('profile')">👤<br>Profile<small>View your details</small></button>
+    </div>
+    <div class="card"><h3>Attendance</h3><p class="muted">Your recent attendance will appear here once the backend is connected.</p></div>
+  </main>
+
+  <main id="attendance" class="screen hidden">
+    <div class="card"><h2>Mark Attendance</h2><p class="muted">Allow camera access and scan the JUNO QR code.</p><div id="reader"></div><p id="scanMsg" class="muted"></p></div>
+    <button class="btn secondary" onclick="show('home')">Back</button>
+  </main>
+
+  <main id="profile" class="screen hidden">
+    <div class="card"><h2>Profile</h2><p><b>Email</b><br><span id="pEmail" class="muted"></span></p><p><b>Student ID</b><br><span id="pId" class="muted">Not loaded</span></p><p><b>Course</b><br><span id="pCourse" class="muted">Not loaded</span></p></div>
+    <button class="btn secondary" onclick="logout()">Sign out</button>
+  </main>
+
+  <nav id="nav" class="nav hidden">
+    <button onclick="show('home')" id="nHome">Home</button>
+    <button onclick="show('attendance')" id="nAtt">Attendance</button>
+    <button onclick="show('profile')" id="nProf">Profile</button>
+  </nav>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode" defer></script>
+<script>
+let currentEmail="";
+function show(id){
+  ["login","home","attendance","profile"].forEach(x=>document.getElementById(x).classList.toggle("hidden",x!==id));
+  document.getElementById("nav").classList.toggle("hidden",id==="login");
+  if(id==="attendance") startScanner();
+}
+function login(){
+  const e=document.getElementById("email").value.trim(), p=document.getElementById("password").value;
+  const msg=document.getElementById("loginMsg");
+  if(!e.endsWith("@mahindrauniversity.edu.in")){msg.textContent="Use your @mahindrauniversity.edu.in email.";return}
+  if(!p){msg.textContent="Enter your password.";return}
+  currentEmail=e; localStorage.setItem("juno_email",e);
+  document.getElementById("pEmail").textContent=e;
+  document.getElementById("welcome").textContent="Welcome";
+  msg.textContent="";
+  show("home");
+}
+function logout(){localStorage.removeItem("juno_email");currentEmail="";show("login")}
+async function startScanner(){
+  if(!window.Html5Qrcode){setTimeout(startScanner,500);return}
+  if(window._scannerStarted)return;
+  window._scannerStarted=true;
+  const scanner=new Html5Qrcode("reader");
+  try{
+    await scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:240,height:240}},
+      async text=>{
+        document.getElementById("scanMsg").textContent="QR detected: "+text;
+        await scanner.stop(); window._scannerStarted=false;
+        // Backend hook: send the decoded JUNO QR payload to markAttendance().
+        document.getElementById("scanMsg").innerHTML='<span class="ok">QR scanned successfully. Attendance API is not connected yet.</span>';
+      },()=>{});
+  }catch(e){
+    window._scannerStarted=false;
+    document.getElementById("scanMsg").innerHTML='<span class="warn">Camera could not start. Check Safari camera permission.</span>';
+  }
+}
+const saved=localStorage.getItem("juno_email"); if(saved){currentEmail=saved;document.getElementById("pEmail").textContent=saved;show("home")}
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body></html>
